@@ -94,4 +94,4 @@ MIT — free to use, modify, and distribute.
 
 ## Author
 
-Built by [Bolt](https://github.com/your-username)
+Built by [Boltx]
