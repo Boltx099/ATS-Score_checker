@@ -1,99 +1,117 @@
 # ATS Score Checker
 
-An AI-powered Applicant Tracking System (ATS) resume analyzer built as a single-file interactive web widget. Paste or upload your resume and a job description to instantly get a compatibility score, keyword gap analysis, and Claude AI-generated improvement advice.
+
+> A fully client-side ATS (Applicant Tracking System) score checker that analyzes your resume against a job description and gives AI-powered improvement advice — no server, no data collection.
+
+🔗 **Live Demo:** [ats-score-checker-cxl6.vercel.app](https://ats-score-checker-cxl6.vercel.app/)
 
 ---
 
-## For testing visit this link:https://ats-score-checker-cxl6.vercel.app/
+## What It Does
+
+Paste or upload your resume and a job description, and ATS::SCAN will:
+
+- **Score your resume** from 0–100 based on ATS compatibility
+- **Break down your score** across key categories (keyword match, formatting, structure, etc.)
+- **Identify matched and missing keywords** — so you know exactly what to add
+- **Surface actionable findings** — critical issues, warnings, and what you're doing right
+- **Generate an AI-powered improvement plan** using your own API key (optional — Step 3 only)
+
+---
 
 ## Features
 
-- **ATS compatibility scoring** — scores your resume out of 100 across 5 weighted categories
-- **Keyword analysis** — extracts top keywords from the job description and shows what your resume is missing
-- **AI-powered improvement plan** — uses the Claude API to generate personalized, role-specific advice with before/after bullet rewrites
-- **File upload support** — drag and drop or click to upload `.pdf`, `.docx`, or `.txt` files
-- **3-step flow** — clean Input → Score → AI Advice navigation
-- **Dark mode ready** — fully adapts to light and dark themes
+- **3-step pipeline** — Input → Scan → Advisory
+- **File upload support** — paste text or drop `.PDF`, `.DOCX`, or `.TXT` files
+- **Keyword analysis** — matched keywords shown in green, missing ones in red
+- **Category score meters** — visual breakdown of where your resume stands
+- **Multi-provider AI advisory** — plug in your own key for Anthropic, OpenAI, Gemini, or any OpenAI-compatible endpoint
+- **100% client-side** — nothing leaves your browser except Step 3 AI calls, which go directly to your chosen provider
+- **Animated radar background** — because why not look cool while fixing your resume
+- **No dependencies** — single `index.html` file, zero npm, zero build step
 
 ---
 
-## Scoring Breakdown
+## Privacy
 
-| Category | Weight | What it checks |
+> Your resume and job description never touch any third-party server (other than the AI provider you configure in Step 3). All scoring logic runs entirely in your browser via JavaScript.
+
+---
+
+## How to Use
+
+### Online (recommended)
+Just visit **[ats-score-checker-cxl6.vercel.app](https://ats-score-checker-cxl6.vercel.app/)** — no install needed.
+
+### Run Locally
+```bash
+git clone https://github.com/YOUR_USERNAME/ats-score-checker.git
+cd ats-score-checker
+# Open index.html in your browser — that's it.
+open index.html
+```
+
+No Node, no Python, no package manager required.
+
+---
+
+## AI Advisory (Optional)
+
+Step 3 generates a personalized improvement plan using an LLM. To enable it:
+
+1. Click the **⚙ Settings** gear icon (top right)
+2. Choose your AI provider and enter your API key
+3. Keys are stored in your **browser's localStorage only** — never sent anywhere except directly to the provider
+
+| Provider | Model Used | Where to Get Key |
 |---|---|---|
-| Keyword relevance | 40% | How many JD keywords appear in your resume |
-| Action verbs | 20% | Use of strong verbs like "Led", "Built", "Optimized" |
-| Quantified results | 15% | Metrics like percentages, numbers, team sizes |
-| Resume structure | 15% | Section headers, bullet points |
-| Length & density | 10% | Word count (400–900 is ideal) |
+| Anthropic | claude-sonnet-4-6 | [console.anthropic.com](https://console.anthropic.com) |
+| OpenAI | gpt-4o-mini | [platform.openai.com](https://platform.openai.com) |
+| Gemini | gemini-2.0-flash | [aistudio.google.com](https://aistudio.google.com) |
+| Custom | Any model | Your own OpenAI-compatible endpoint |
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
+| Layer | Tech |
 |---|---|
-| UI | Vanilla HTML, CSS, JavaScript |
-| PDF parsing | [PDF.js](https://mozilla.github.io/pdf.js/) v3.11 |
-| DOCX parsing | [Mammoth.js](https://github.com/mwilliamson/mammoth.js/) v1.6 |
-| AI feedback | [Anthropic Claude API](https://docs.anthropic.com/) (claude-sonnet-4-6) |
-| Icons | [Tabler Icons](https://tabler.io/icons) (outline webfont) |
+| UI | Vanilla HTML/CSS/JS — single file |
+| Fonts | JetBrains Mono + Inter (Google Fonts) |
+| Background | Canvas 2D — animated radar/network effect |
+| AI calls | Fetch API → provider of your choice |
+| Hosting | Vercel (static) |
 
 ---
 
-## Getting Started
-
-### Option 1 — Run locally
-
-Clone the repo and open `index.html` in your browser. No build step or server required.
-
-```bash
-git clone https://github.com/your-username/ats-score-checker.git
-cd ats-score-checker
-open index.html
-```
-
-### Option 2 — Deploy to GitHub Pages
-
-1. Go to your repo **Settings → Pages**
-2. Set source to `main` branch, `/ (root)`
-3. Your checker will be live at `https://your-username.github.io/ats-score-checker`
-
----
-
-## Usage
-
-1. **Paste or upload** your job description (left panel)
-2. **Paste or upload** your resume — supports `.pdf`, `.docx`, `.txt`
-3. Click **Analyze resume** to get your ATS score and keyword breakdown
-4. Click **Get AI-powered advice** for a Claude-generated improvement plan
-
----
-
-## Project Structure
+## File Structure
 
 ```
 ats-score-checker/
-├── index.html       # Main app (single file — all HTML, CSS, JS included)
-└── README.md
+└── index.html     # The entire app — self-contained
 ```
 
 ---
 
-## Notes
+## Deployment (Vercel)
 
-- The AI advice feature calls the Anthropic API directly from the browser. This works out of the box inside Claude.ai artifacts. If you host it externally, you will need to proxy the API call through a backend to keep your API key secure.
-- File parsing runs entirely in the browser — no files are uploaded to any server.
-- The scoring algorithm is heuristic-based and designed to approximate real ATS behavior. Results are indicative, not definitive.
+1. Fork or clone this repo
+2. Go to [vercel.com](https://vercel.com) → **New Project** → Import your repo
+3. Framework preset: **None** (it's just a static HTML file)
+4. Deploy — done 
+
+---
+
+## Contributing
+
+Issues and PRs are welcome. If you find a bug or have a feature idea, open an issue and describe it clearly.
 
 ---
 
 ## License
 
-MIT — free to use, modify, and distribute.
+MIT License — free to use, modify, and deploy.
 
 ---
 
-## Author
-
-Built by [Boltx]
+*Created by **Boltx***
