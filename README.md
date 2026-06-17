@@ -4,6 +4,8 @@ An AI-powered Applicant Tracking System (ATS) resume analyzer built as a single-
 
 ---
 
+## For testing visit this link:https://ats-score-checker-cxl6.vercel.app/
+
 ## Features
 
 - **ATS compatibility scoring** — scores your resume out of 100 across 5 weighted categories
