@@ -202,7 +202,7 @@ textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(
       <div class="p-line" id="pline2"></div>
       <div class="p-step" id="pstep3"><div class="p-num">03</div><span class="p-lbl">Advisory</span></div>
     </div>
-    <button class="btn btn-ghost" id="settings-toggle" style="padding:0;width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;" title="AI provider settings"></button>
+    <button class="btn" id="settings-toggle" style="padding:7px 14px;border-radius:8px;display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;letter-spacing:.4px;background:var(--bg-input);border:1px solid var(--accent);color:var(--accent);box-shadow:0 0 0 1px var(--accent-dim),0 0 10px var(--accent-dim);" title="AI provider settings"></button>
   </div>
 </div>
 
@@ -358,9 +358,10 @@ textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script>window._pdfWorker='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
-if(typeof pdfjsLib!=='undefined')pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+if(typeof pdfjsLib!=='undefined')pdfjsLib.GlobalWorkerOptions.workerSrc=window._pdfWorker;
 
 /* ---------- inline icon set (no external font dependency) ---------- */
 const ICONS={
@@ -401,7 +402,7 @@ document.getElementById('ai-btn').innerHTML=I('sparkles',15)+' Run AI advisory';
 document.getElementById('back1-btn').innerHTML=I('arrowLeft',15)+' Edit inputs';
 document.getElementById('ai-head').innerHTML=I('sparkles',15,'color:var(--accent)')+' AI-powered improvement plan';
 document.getElementById('back2-btn').innerHTML=I('arrowLeft',15)+' Back to score';
-document.getElementById('settings-toggle').innerHTML=I('gear',16);
+// settings button rendered by refreshKeyStatus()
 document.getElementById('reset-btn').innerHTML=I('refresh',15)+' Start over';
 
 /* ---------- multi-provider settings storage (this page runs standalone — never use the artifact key-proxy) ---------- */
@@ -435,7 +436,18 @@ function refreshKeyStatus(){
   document.getElementById('key-status').innerHTML=has
     ? I('check',12,'color:var(--good);')+' <span style="color:var(--good);">Configured — AI advisory ready</span>'
     : I('x',12,'color:var(--text-faint);')+' <span style="color:var(--text-faint);">Not configured — AI advisory disabled</span>';
-  document.getElementById('settings-toggle').style.color=has?'var(--good)':'';
+  const btn=document.getElementById('settings-toggle');
+  if(has){
+    btn.style.borderColor='var(--good)';
+    btn.style.color='var(--good)';
+    btn.style.boxShadow='0 0 0 1px rgba(0,224,164,.15),0 0 10px rgba(0,224,164,.15)';
+    btn.innerHTML=I('gear',14,'color:var(--good)')+' <span style="font-family:var(--mono);font-size:11px;letter-spacing:.4px;">AI Ready</span>';
+  }else{
+    btn.style.borderColor='var(--accent)';
+    btn.style.color='var(--accent)';
+    btn.style.boxShadow='0 0 0 1px var(--accent-dim),0 0 10px var(--accent-dim)';
+    btn.innerHTML=I('gear',14,'color:var(--accent)')+' <span style="font-family:var(--mono);font-size:11px;letter-spacing:.4px;">AI Settings</span>';
+  }
 }
 
 function swProvider(prov){
@@ -766,7 +778,15 @@ Be specific, actionable, and concise. Use plain text without markdown symbols.`;
     const paras=(txt||'Unable to generate advice. Please try again.').split(/\n\n+/).filter(p=>p.trim());
     aiOut.innerHTML=`<div class="term-card"><div class="term-head"><span class="brand-dot"></span>soc_analyst.ai</div><div class="term-body">${paras.map(p=>`<p>${p.replace(/\n/g,'<br>')}</p>`).join('')}</div></div>`;
   }catch(e){
-    aiOut.innerHTML=`<div class="term-card"><div class="term-head"><span class="brand-dot" style="background:var(--crit);box-shadow:none;"></span>soc_analyst.ai</div><div class="term-body"><p style="color:var(--crit);margin-bottom:6px;">Request failed: ${e.message}</p><p style="margin-bottom:0;color:var(--text-dim);">Check the credentials in Settings are correct and have available quota, then try again.</p></div></div>`;
+    aiOut.innerHTML=`<div class="term-card"><div class="term-head"><span class="brand-dot" style="background:var(--crit);box-shadow:none;"></span>soc_analyst.ai &nbsp;<span style="color:var(--crit);font-size:10px;letter-spacing:.5px;">ERROR</span></div><div class="term-body">
+      <p style="color:var(--crit);margin-bottom:8px;font-weight:600;">Request failed</p>
+      <p style="color:var(--text-dim);margin-bottom:14px;font-size:12.5px;line-height:1.7;">${e.message}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-primary" onclick="getAI()" style="padding:9px 15px;font-size:12px;">${I('refresh',13)} Retry</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('settings-panel').style.display='block';swProvider(getProvider());window.scrollTo({top:0,behavior:'smooth'});" style="padding:9px 15px;font-size:12px;">${I('gear',13)} Open Settings</button>
+      </div>
+      <p style="margin:12px 0 0;font-size:11.5px;color:var(--text-faint);">Check that your API key is valid and has available quota.</p>
+    </div></div>`;
   }
 }
 
@@ -854,9 +874,9 @@ async function callAIProvider(prompt){
   throw new Error('Unknown provider');
 }
 
-function showPage(id){document.querySelectorAll('.page').forEach(p=>p.className='page');document.getElementById(id).className='page active';}
-function goBack(){showPage('page2');setStep(2);}
-function goBack2(){showPage('page1');setStep(1);}
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.className='page');document.getElementById(id).className='page active';window.scrollTo({top:0,behavior:'smooth'});}
+function goBack(){showPage('page1');setStep(1);}
+function goBack2(){showPage('page2');setStep(2);}
 function clearAll(){
   ['jd','res'].forEach(f=>{
     document.getElementById(f+'-txt').value='';
