@@ -37,8 +37,16 @@ body{
     radial-gradient(ellipse 900px 500px at 50% -10%, rgba(0,224,164,.08), transparent 60%),
     repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px);
   min-height:100vh;
+  position:relative;
 }
-.app{max-width:900px;margin:0 auto;padding:32px 20px 70px;}
+
+/* animated swarm/network background (canvas) */
+#bg-fx-canvas{position:fixed;inset:0;z-index:0;width:100%;height:100%;pointer-events:none;}
+@media (prefers-reduced-motion: reduce){
+  #bg-fx-canvas{display:none;}
+}
+
+.app{max-width:900px;margin:0 auto;padding:32px 20px 70px;position:relative;z-index:1;}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;}
 
 /* topbar */
@@ -173,6 +181,7 @@ textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(
 </style>
 </head>
 <body>
+<canvas id="bg-fx-canvas" aria-hidden="true"></canvas>
 <div class="app">
 <h1 class="sr-only">ATS Resume Score Checker — analyze your resume against a job description and get AI-powered ATS compatibility feedback</h1>
 
@@ -182,6 +191,7 @@ textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(
     <div>
       ATS<b>::SCAN</b>
       <span class="brand-sub">resume / job-description match analyzer</span>
+      <span class="brand-sub" style="margin-top:1px;">created by Boltx</span>
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:16px;">
@@ -192,21 +202,59 @@ textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(
       <div class="p-line" id="pline2"></div>
       <div class="p-step" id="pstep3"><div class="p-num">03</div><span class="p-lbl">Advisory</span></div>
     </div>
-    <button class="btn btn-ghost" id="settings-toggle" style="padding:7px 9px;" title="Anthropic API key settings"></button>
+    <button class="btn btn-ghost" id="settings-toggle" style="padding:0;width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;" title="AI provider settings"></button>
   </div>
 </div>
 
 <div class="card" id="settings-panel" style="display:none;margin-bottom:24px;">
   <div class="eyebrow">Settings</div>
-  <div class="io-label" style="margin-bottom:10px;">Anthropic API key</div>
-  <p style="font-size:12.5px;color:var(--text-dim);line-height:1.6;margin:0 0 12px;">Required only for step 3 (AI advisory). Stored in this browser's local storage — never sent anywhere except directly to Anthropic's API from your machine. Get a key from <span style="color:var(--text);">console.anthropic.com</span>.</p>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;">
-    <input type="password" id="key-input" placeholder="sk-ant-…" style="flex:1;min-width:220px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:var(--mono);font-size:12.5px;color:var(--text);">
+  <div class="io-label" style="margin-bottom:10px;">AI provider</div>
+  <p style="font-size:12.5px;color:var(--text-dim);line-height:1.6;margin:0 0 12px;">Required only for step 3 (AI advisory). Your key is stored in this browser's local storage and sent directly from your machine to the provider you choose — never through any other server.</p>
+
+  <div class="tabs" id="provider-tabs" style="margin-bottom:14px;">
+    <button class="tab on" id="prov-anthropic" onclick="swProvider('anthropic')">Anthropic</button>
+    <button class="tab" id="prov-openai" onclick="swProvider('openai')">OpenAI</button>
+    <button class="tab" id="prov-gemini" onclick="swProvider('gemini')">Gemini</button>
+    <button class="tab" id="prov-custom" onclick="swProvider('custom')">Custom</button>
+  </div>
+
+  <div id="prov-fields-anthropic">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <input type="password" id="key-anthropic" placeholder="sk-ant-…" style="flex:1;min-width:220px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:var(--mono);font-size:12.5px;color:var(--text);">
+    </div>
+    <div class="dz-sub" style="margin-top:8px;">Model: claude-sonnet-4-6 · key from console.anthropic.com</div>
+  </div>
+
+  <div id="prov-fields-openai" style="display:none;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <input type="password" id="key-openai" placeholder="sk-…" style="flex:1;min-width:220px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:var(--mono);font-size:12.5px;color:var(--text);">
+    </div>
+    <div class="dz-sub" style="margin-top:8px;">Model: gpt-4o-mini · key from platform.openai.com</div>
+  </div>
+
+  <div id="prov-fields-gemini" style="display:none;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <input type="password" id="key-gemini" placeholder="AIza…" style="flex:1;min-width:220px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:var(--mono);font-size:12.5px;color:var(--text);">
+    </div>
+    <div class="dz-sub" style="margin-top:8px;">Model: gemini-2.0-flash · key from aistudio.google.com</div>
+  </div>
+
+  <div id="prov-fields-custom" style="display:none;">
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <input type="text" id="custom-endpoint" placeholder="https://your-endpoint.example.com/v1/chat/completions" style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:var(--mono);font-size:12.5px;color:var(--text);">
+      <input type="text" id="custom-model" placeholder="model name (e.g. llama-3.3-70b)" style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:var(--mono);font-size:12.5px;color:var(--text);">
+      <input type="password" id="key-custom" placeholder="API key (if required)" style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:var(--mono);font-size:12.5px;color:var(--text);">
+    </div>
+    <div class="dz-sub" style="margin-top:8px;">Expects an OpenAI-compatible chat/completions endpoint (works with most self-hosted or third-party OpenAI-compatible APIs).</div>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
     <button class="btn btn-primary" id="key-save" style="padding:10px 16px;">Save</button>
     <button class="btn btn-ghost" id="key-clear" style="padding:10px 16px;">Clear</button>
   </div>
   <div class="status-line" id="key-status" style="color:var(--text-faint);"></div>
 </div>
+
 
 <!-- PAGE 1: INPUT -->
 <div class="page active" id="page1">
@@ -343,7 +391,7 @@ document.getElementById('jd-dz-icon').innerHTML=I('cloud',22);
 document.getElementById('res-dz-icon').innerHTML=I('cloud',22);
 document.getElementById('analyze-btn').innerHTML=I('target',15)+' Run scan';
 document.getElementById('clear-btn').innerHTML=I('refresh',15)+' Reset';
-document.getElementById('privacy-note').innerHTML=I('shield',13)+' Runs entirely in your browser. Step 3 (AI advisory) sends your JD + resume directly to Anthropic using your own API key — set one in Settings.';
+document.getElementById('privacy-note').innerHTML=I('shield',13)+' Runs entirely in your browser. Step 3 (AI advisory) sends your JD + resume directly to the AI provider you configure — set one in Settings.';
 document.getElementById('breakdown-head').innerHTML=I('barChart',15)+' Category breakdown';
 document.getElementById('kw-head').innerHTML=I('tag',15)+' Keyword analysis';
 document.getElementById('kw-found-head').innerHTML=I('check',13)+' Matched keywords';
@@ -356,35 +404,89 @@ document.getElementById('back2-btn').innerHTML=I('arrowLeft',15)+' Back to score
 document.getElementById('settings-toggle').innerHTML=I('gear',16);
 document.getElementById('reset-btn').innerHTML=I('refresh',15)+' Start over';
 
-/* ---------- API key storage (this page runs standalone — never use the artifact key-proxy) ---------- */
-const KEY_STORAGE='ats_scan_anthropic_key';
-function getKey(){try{return localStorage.getItem(KEY_STORAGE)||'';}catch(e){return '';}}
-function setKey(v){try{localStorage.setItem(KEY_STORAGE,v);}catch(e){}}
-function delKey(){try{localStorage.removeItem(KEY_STORAGE);}catch(e){}}
+/* ---------- multi-provider settings storage (this page runs standalone — never use the artifact key-proxy) ---------- */
+const PROV_STORAGE='ats_scan_provider';
+const KEYS_STORAGE='ats_scan_provider_keys';
+const CUSTOM_STORAGE='ats_scan_custom_cfg';
+
+function getProvider(){try{return localStorage.getItem(PROV_STORAGE)||'anthropic';}catch(e){return 'anthropic';}}
+function setProvider(v){try{localStorage.setItem(PROV_STORAGE,v);}catch(e){}}
+function getKeys(){try{return JSON.parse(localStorage.getItem(KEYS_STORAGE)||'{}');}catch(e){return {};}}
+function setProviderKey(prov,v){
+  const k=getKeys();k[prov]=v;
+  try{localStorage.setItem(KEYS_STORAGE,JSON.stringify(k));}catch(e){}
+}
+function getProviderKey(prov){const k=getKeys();return k[prov]||'';}
+function delProviderKey(prov){const k=getKeys();delete k[prov];try{localStorage.setItem(KEYS_STORAGE,JSON.stringify(k));}catch(e){}}
+function getCustomCfg(){try{return JSON.parse(localStorage.getItem(CUSTOM_STORAGE)||'{}');}catch(e){return {};}}
+function setCustomCfg(cfg){try{localStorage.setItem(CUSTOM_STORAGE,JSON.stringify(cfg));}catch(e){}}
+
+function hasUsableKey(){
+  const prov=getProvider();
+  if(prov==='custom'){
+    const cfg=getCustomCfg();
+    return !!(cfg.endpoint&&cfg.model);
+  }
+  return !!getProviderKey(prov);
+}
+
 function refreshKeyStatus(){
-  const has=!!getKey();
+  const has=hasUsableKey();
   document.getElementById('key-status').innerHTML=has
-    ? I('check',12,'color:var(--good);')+' <span style="color:var(--good);">Key saved in this browser</span>'
-    : I('x',12,'color:var(--text-faint);')+' <span style="color:var(--text-faint);">No key set — AI advisory disabled</span>';
+    ? I('check',12,'color:var(--good);')+' <span style="color:var(--good);">Configured — AI advisory ready</span>'
+    : I('x',12,'color:var(--text-faint);')+' <span style="color:var(--text-faint);">Not configured — AI advisory disabled</span>';
   document.getElementById('settings-toggle').style.color=has?'var(--good)':'';
 }
+
+function swProvider(prov){
+  setProvider(prov);
+  ['anthropic','openai','gemini','custom'].forEach(p=>{
+    document.getElementById('prov-'+p).className=p===prov?'tab on':'tab';
+    document.getElementById('prov-fields-'+p).style.display=p===prov?'block':'none';
+  });
+  if(prov==='custom'){
+    const cfg=getCustomCfg();
+    document.getElementById('custom-endpoint').value=cfg.endpoint||'';
+    document.getElementById('custom-model').value=cfg.model||'';
+    document.getElementById('key-custom').value='';
+  }else{
+    const inp=document.getElementById('key-'+prov);
+    if(inp)inp.value='';
+  }
+}
+
 document.getElementById('settings-toggle').onclick=()=>{
   const p=document.getElementById('settings-panel');
   p.style.display=p.style.display==='none'?'block':'none';
-  if(p.style.display==='block')document.getElementById('key-input').value=getKey();
+  if(p.style.display==='block')swProvider(getProvider());
 };
+
 document.getElementById('key-save').onclick=()=>{
-  const v=document.getElementById('key-input').value.trim();
-  if(!v)return;
-  setKey(v);refreshKeyStatus();
-  document.getElementById('key-input').value='';
-  document.getElementById('key-input').placeholder='sk-ant-… (saved)';
+  const prov=getProvider();
+  if(prov==='custom'){
+    const endpoint=document.getElementById('custom-endpoint').value.trim();
+    const model=document.getElementById('custom-model').value.trim();
+    const key=document.getElementById('key-custom').value.trim();
+    if(!endpoint||!model)return;
+    setCustomCfg({endpoint,model});
+    if(key)setProviderKey('custom',key);
+  }else{
+    const v=document.getElementById('key-'+prov).value.trim();
+    if(!v)return;
+    setProviderKey(prov,v);
+  }
+  refreshKeyStatus();
+  swProvider(prov);
 };
+
 document.getElementById('key-clear').onclick=()=>{
-  delKey();refreshKeyStatus();
-  document.getElementById('key-input').value='';
-  document.getElementById('key-input').placeholder='sk-ant-…';
+  const prov=getProvider();
+  delProviderKey(prov);
+  if(prov==='custom')setCustomCfg({});
+  refreshKeyStatus();
+  swProvider(prov);
 };
+
 refreshKeyStatus();
 
 const ET={jd:'',res:''};
@@ -611,16 +713,16 @@ async function getAI(){
     </div>`;
 
   const aiOut=document.getElementById('ai-out');
-  const apiKey=getKey();
 
-  if(!apiKey){
+  if(!hasUsableKey()){
+    const prov=getProvider();
     aiOut.innerHTML=`<div class="term-card"><div class="term-head"><span class="brand-dot" style="background:var(--warn);box-shadow:none;"></span>soc_analyst.ai</div><div class="term-body">
-      <p>No Anthropic API key is set, so this step is disabled.</p>
-      <p style="margin-bottom:0;">Add a key in <strong>Settings</strong> (gear icon, top right) to get a tailored improvement plan — bullet rewrites, skills gaps, and a tightened summary line${lastHasJD?' for this exact role':''}. The key stays in this browser only.</p>
+      <p>No AI provider is configured, so this step is disabled.</p>
+      <p style="margin-bottom:0;">Set up a provider in <strong>Settings</strong> (gear icon, top right) to get a tailored improvement plan — bullet rewrites, skills gaps, and a tightened summary line${lastHasJD?' for this exact role':''}. Credentials stay in this browser only.</p>
     </div></div>`;
     const panel=document.getElementById('settings-panel');
     panel.style.display='block';
-    document.getElementById('key-input').focus();
+    swProvider(prov);
     return;
   }
 
@@ -660,6 +762,20 @@ Provide a structured improvement plan covering:
 Be specific, actionable, and concise. Use plain text without markdown symbols.`;
 
   try{
+    const txt=await callAIProvider(prompt);
+    const paras=(txt||'Unable to generate advice. Please try again.').split(/\n\n+/).filter(p=>p.trim());
+    aiOut.innerHTML=`<div class="term-card"><div class="term-head"><span class="brand-dot"></span>soc_analyst.ai</div><div class="term-body">${paras.map(p=>`<p>${p.replace(/\n/g,'<br>')}</p>`).join('')}</div></div>`;
+  }catch(e){
+    aiOut.innerHTML=`<div class="term-card"><div class="term-head"><span class="brand-dot" style="background:var(--crit);box-shadow:none;"></span>soc_analyst.ai</div><div class="term-body"><p style="color:var(--crit);margin-bottom:6px;">Request failed: ${e.message}</p><p style="margin-bottom:0;color:var(--text-dim);">Check the credentials in Settings are correct and have available quota, then try again.</p></div></div>`;
+  }
+}
+
+/* ---------- provider dispatch: returns plain text reply for a given prompt ---------- */
+async function callAIProvider(prompt){
+  const prov=getProvider();
+
+  if(prov==='anthropic'){
+    const apiKey=getProviderKey('anthropic');
     const resp=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{
@@ -675,16 +791,67 @@ Be specific, actionable, and concise. Use plain text without markdown symbols.`;
       })
     });
     const data=await resp.json();
-    if(!resp.ok){
-      const msg=data?.error?.message||('HTTP '+resp.status);
-      throw new Error(msg);
-    }
-    const txt=data.content?.map(b=>b.text||'').join('')||'Unable to generate advice. Please try again.';
-    const paras=txt.split(/\n\n+/).filter(p=>p.trim());
-    aiOut.innerHTML=`<div class="term-card"><div class="term-head"><span class="brand-dot"></span>soc_analyst.ai</div><div class="term-body">${paras.map(p=>`<p>${p.replace(/\n/g,'<br>')}</p>`).join('')}</div></div>`;
-  }catch(e){
-    aiOut.innerHTML=`<div class="term-card"><div class="term-head"><span class="brand-dot" style="background:var(--crit);box-shadow:none;"></span>soc_analyst.ai</div><div class="term-body"><p style="color:var(--crit);margin-bottom:6px;">Request failed: ${e.message}</p><p style="margin-bottom:0;color:var(--text-dim);">Check the key in Settings is correct and has available credits, then try again.</p></div></div>`;
+    if(!resp.ok)throw new Error(data?.error?.message||('HTTP '+resp.status));
+    return data.content?.map(b=>b.text||'').join('')||'';
   }
+
+  if(prov==='openai'){
+    const apiKey=getProviderKey('openai');
+    const resp=await fetch('https://api.openai.com/v1/chat/completions',{
+      method:'POST',
+      headers:{
+        'content-type':'application/json',
+        'authorization':'Bearer '+apiKey
+      },
+      body:JSON.stringify({
+        model:'gpt-4o-mini',
+        max_tokens:1000,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    const data=await resp.json();
+    if(!resp.ok)throw new Error(data?.error?.message||('HTTP '+resp.status));
+    return data.choices?.[0]?.message?.content||'';
+  }
+
+  if(prov==='gemini'){
+    const apiKey=getProviderKey('gemini');
+    const resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+encodeURIComponent(apiKey),{
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({
+        contents:[{parts:[{text:prompt}]}]
+      })
+    });
+    const data=await resp.json();
+    if(!resp.ok)throw new Error(data?.error?.message||('HTTP '+resp.status));
+    return data.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('')||'';
+  }
+
+  if(prov==='custom'){
+    const cfg=getCustomCfg();
+    const apiKey=getProviderKey('custom');
+    if(!cfg.endpoint||!cfg.model)throw new Error('Custom endpoint or model not set');
+    const headers={'content-type':'application/json'};
+    if(apiKey)headers['authorization']='Bearer '+apiKey;
+    const resp=await fetch(cfg.endpoint,{
+      method:'POST',
+      headers,
+      body:JSON.stringify({
+        model:cfg.model,
+        max_tokens:1000,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    const data=await resp.json();
+    if(!resp.ok)throw new Error(data?.error?.message||('HTTP '+resp.status));
+    // tolerate both OpenAI-style and Anthropic-style response shapes
+    if(data.choices?.[0]?.message?.content)return data.choices[0].message.content;
+    if(data.content)return Array.isArray(data.content)?data.content.map(b=>b.text||'').join(''):String(data.content);
+    return '';
+  }
+
+  throw new Error('Unknown provider');
 }
 
 function showPage(id){document.querySelectorAll('.page').forEach(p=>p.className='page');document.getElementById(id).className='page active';}
@@ -700,6 +867,178 @@ function clearAll(){
   });
   showPage('page1');setStep(1);setSt('');
 }
+
+/* ---- animated radar / scan-ping background (canvas2d) ---- */
+(function(){
+  const cv=document.getElementById('bg-fx-canvas');
+  if(!cv)return;
+  const reduceMotion=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduceMotion)return;
+  const ctx=cv.getContext('2d');
+  let W=0,H=0,DPR=Math.min(window.devicePixelRatio||1,2);
+  const ACCENT='0,224,164';
+  const GRID=46;
+  let dots=[];
+  let pings=[];
+  let sweepAngle=0;
+
+  function resize(){
+    W=window.innerWidth;H=window.innerHeight;
+    cv.width=W*DPR;cv.height=H*DPR;
+    cv.style.width=W+'px';cv.style.height=H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    buildGrid();
+  }
+
+  function buildGrid(){
+    dots=[];
+    const cols=Math.ceil(W/GRID)+1;
+    const rows=Math.ceil(H/GRID)+1;
+    for(let i=0;i<cols;i++){
+      for(let j=0;j<rows;j++){
+        dots.push({x:i*GRID,y:j*GRID,baseAlpha:.12+Math.random()*.10});
+      }
+    }
+  }
+
+  function spawnPing(x,y,strength=1){
+    pings.push({x,y,r:0,maxR:60+Math.random()*70,alpha:.55*strength,life:0});
+  }
+
+  // periodic ambient pings at random grid points, like hosts answering a scan
+  function scheduleAmbientPing(){
+    const delay=1400+Math.random()*1800;
+    setTimeout(()=>{
+      if(dots.length){
+        const d=dots[Math.floor(Math.random()*dots.length)];
+        spawnPing(d.x,d.y,.7);
+      }
+      scheduleAmbientPing();
+    },delay);
+  }
+
+  const mouse={x:-9999,y:-9999,active:false};
+  let lastPingTime=0;
+  window.addEventListener('mousemove',(e)=>{
+    mouse.x=e.clientX;mouse.y=e.clientY;mouse.active=true;
+    const now=performance.now();
+    if(now-lastPingTime>900){
+      spawnPing(e.clientX,e.clientY,1);
+      lastPingTime=now;
+    }
+  });
+  window.addEventListener('mouseleave',()=>{mouse.active=false;});
+  window.addEventListener('click',(e)=>{
+    spawnPing(e.clientX,e.clientY,1.4);
+  });
+  window.addEventListener('touchstart',(e)=>{
+    if(e.touches&&e.touches[0]){
+      spawnPing(e.touches[0].clientX,e.touches[0].clientY,1.2);
+    }
+  },{passive:true});
+
+  function step(dt){
+    sweepAngle+=dt*0.00035;
+    if(sweepAngle>Math.PI*2)sweepAngle-=Math.PI*2;
+
+    for(let i=pings.length-1;i>=0;i--){
+      const p=pings[i];
+      p.life+=dt;
+      p.r+=dt*0.07;
+      p.alpha=Math.max(0,p.alpha-dt*0.0009);
+      if(p.r>p.maxR||p.alpha<=0)pings.splice(i,1);
+    }
+  }
+
+  const cx=()=>W*0.5,cy=()=>H*0.42;
+  const SWEEP_R=Math.max;
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+
+    // base dot grid, very faint, subtly brighter near the sweep line
+    const ox=cx(),oy=cy();
+    const sweepR=Math.hypot(W,H)*.75;
+    for(const d of dots){
+      const dx=d.x-ox,dy=d.y-oy;
+      const ang=Math.atan2(dy,dx);
+      let diff=Math.abs(((ang-sweepAngle+Math.PI*3)%(Math.PI*2))-Math.PI);
+      const near=Math.max(0,1-diff/0.5);
+      const a=d.baseAlpha+near*.35;
+      ctx.beginPath();
+      ctx.fillStyle=`rgba(${ACCENT},${a})`;
+      ctx.arc(d.x,d.y,1,0,Math.PI*2);
+      ctx.fill();
+    }
+
+    // rotating radar sweep wedge from a fixed origin
+    const grad=ctx.createConicGradient?ctx.createConicGradient(sweepAngle-0.5,ox,oy):null;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(ox,oy);
+    const a1=sweepAngle,a2=sweepAngle+0.5;
+    ctx.arc(ox,oy,sweepR,a1,a2);
+    ctx.closePath();
+    const lg=ctx.createLinearGradient(
+      ox+Math.cos(sweepAngle+0.25)*sweepR*0.0,
+      oy+Math.sin(sweepAngle+0.25)*sweepR*0.0,
+      ox+Math.cos(sweepAngle+0.25)*sweepR,
+      oy+Math.sin(sweepAngle+0.25)*sweepR
+    );
+    lg.addColorStop(0,`rgba(${ACCENT},.05)`);
+    lg.addColorStop(1,`rgba(${ACCENT},0)`);
+    ctx.fillStyle=lg;
+    ctx.fill();
+    ctx.restore();
+
+    // faint concentric rings around sweep origin (radar rings)
+    ctx.strokeStyle=`rgba(${ACCENT},.05)`;
+    ctx.lineWidth=1;
+    for(let r=120;r<sweepR;r+=140){
+      ctx.beginPath();
+      ctx.arc(ox,oy,r,0,Math.PI*2);
+      ctx.stroke();
+    }
+
+    // expanding ping rings
+    for(const p of pings){
+      ctx.beginPath();
+      ctx.strokeStyle=`rgba(${ACCENT},${p.alpha})`;
+      ctx.lineWidth=1.4;
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.fillStyle=`rgba(${ACCENT},${Math.min(.8,p.alpha+.2)})`;
+      ctx.arc(p.x,p.y,1.8,0,Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  let raf=null,lastT=0;
+  function loop(t){
+    const dt=lastT?t-lastT:16;
+    lastT=t;
+    step(dt);
+    draw();
+    raf=requestAnimationFrame(loop);
+  }
+
+  let resizeTimer=null;
+  window.addEventListener('resize',()=>{
+    clearTimeout(resizeTimer);
+    resizeTimer=setTimeout(()=>{resize();},150);
+  });
+
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){if(raf)cancelAnimationFrame(raf);raf=null;}
+    else if(!raf){lastT=0;raf=requestAnimationFrame(loop);}
+  });
+
+  resize();
+  scheduleAmbientPing();
+  raf=requestAnimationFrame(loop);
+})();
 </script>
 </body>
 </html>
